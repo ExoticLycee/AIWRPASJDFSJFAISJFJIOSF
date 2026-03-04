@@ -40,7 +40,7 @@ export default async function handler(req) {
         max_tokens: 4096,
         stream: true,
         system: system || 'Kamu adalah WarpahAI, asisten Roblox expert dari WarpahExploits.',
-        messages,
+        messages: messages.slice(-10),
       }),
     });
 
