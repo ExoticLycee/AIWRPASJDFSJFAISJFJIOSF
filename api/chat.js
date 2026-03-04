@@ -38,7 +38,7 @@ export default async function handler(req) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
+        max_tokens: 10000,
         stream: true,
         system: system || 'Kamu adalah WarpahAI, asisten Roblox expert dari WarpahExploits.',
         messages: recentMessages,
