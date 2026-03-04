@@ -27,7 +27,8 @@ export default async function handler(req) {
       return new Response(JSON.stringify({ error: 'API key tidak dikonfigurasi' }), { status: 500 });
     }
 
-    // Call Anthropic with streaming
+    const recentMessages = messages.slice(-10);
+
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -40,7 +41,7 @@ export default async function handler(req) {
         max_tokens: 4096,
         stream: true,
         system: system || 'Kamu adalah WarpahAI, asisten Roblox expert dari WarpahExploits.',
-        messages: messages.slice(-10),
+        messages: recentMessages,
       }),
     });
 
@@ -52,7 +53,6 @@ export default async function handler(req) {
       });
     }
 
-    // Stream response back to client
     return new Response(anthropicRes.body, {
       headers: {
         'Content-Type': 'text/event-stream',
