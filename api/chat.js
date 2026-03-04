@@ -1,52 +1,67 @@
-export default async function handler(req, res) {
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+export const config = { runtime: 'edge' };
+
+export default async function handler(req) {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    });
   }
 
-  // CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+  }
 
   try {
-    const { messages, system } = req.body;
+    const { messages, system } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
-      return res.status(400).json({ error: 'Invalid messages format' });
+      return new Response(JSON.stringify({ error: 'Invalid messages' }), { status: 400 });
     }
 
-    // API key diambil dari environment variable Vercel (AMAN - tidak kelihatan di frontend)
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: 'API key tidak dikonfigurasi di server' });
+      return new Response(JSON.stringify({ error: 'API key tidak dikonfigurasi' }), { status: 500 });
     }
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call Anthropic with streaming
+    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: 4096,
+        stream: true,
         system: system || 'Kamu adalah WarpahAI, asisten Roblox expert dari WarpahExploits.',
-        messages: messages
-      })
+        messages,
+      }),
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.error?.message || 'API error' });
+    if (!anthropicRes.ok) {
+      const err = await anthropicRes.json();
+      return new Response(JSON.stringify({ error: err.error?.message || 'API error' }), {
+        status: anthropicRes.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    return res.status(200).json(data);
+    // Stream response back to client
+    return new Response(anthropicRes.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*',
+      },
+    });
 
-  } catch (error) {
-    console.error('Chat API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 });
   }
 }
