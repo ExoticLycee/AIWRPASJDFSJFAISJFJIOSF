@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WarpahAI — Roblox Script Assistant</title>
+<link rel="icon" type="image/png" href="https://res.cloudinary.com/dsjctfzj1/image/upload/v1760351559/IMG-20251007-WA0626_dv8s8r.jpg">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --g: #00ff88; --g2: #00cc55;
+    --g3: rgba(0,255,136,0.07); --g4: rgba(0,255,136,0.18);
+    --dark: #000; --border: rgba(0,255,136,0.18); --border2: rgba(0,255,136,0.4);
+    --text: #d5ede0; --muted: rgba(0,255,136,0.45);
+  }
+  html,body { height:100%; }
+  body {
+    font-family:'Space Grotesk',sans-serif;
+    background:var(--dark); color:var(--text);
+    overflow:hidden; position:relative;
+  }
+  .bg-animated { position:fixed;inset:0;background:radial-gradient(ellipse at top,#0d2818 0%,#000 55%);z-index:-2; }
+  .grid-bg {
+    position:fixed;inset:0;z-index:-1;
+    background-image:linear-gradient(rgba(0,255,136,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,136,0.03) 1px,transparent 1px);
+    background-size:50px 50px;animation:gridMove 20s linear infinite;
+  }
+  @keyframes gridMove{to{transform:translateY(50px)}}
+  #particles{position:fixed;inset:0;z-index:-1;pointer-events:none;}
+  .particle{position:absolute;background:var(--g);border-radius:50%;animation:floatUp linear infinite;}
+  @keyframes floatUp{0%{transform:translateY(100vh) scale(0);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(-100vh) scale(1);opacity:0}}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--g2);border-radius:2px}
+
+  /* LAYOUT */
+  .app{display:flex;height:100vh;overflow:hidden;}
+
+  /* SIDEBAR */
+  .sidebar{
+    width:270px;flex-shrink:0;
+    display:flex;flex-direction:column;
+    background:rgba(0,0,0,0.65);
+    border-right:1px solid var(--border);
+    backdrop-filter:blur(14px);
+    z-index:10;transition:transform .3s;
+  }
+  .sidebar-header{
+    padding:16px 18px 13px;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:10px;
+  }
+  .logo-img{width:38px;height:38px;border-radius:9px;object-fit:cover;box-shadow:0 0 12px rgba(0,255,136,.35);border:1px solid var(--border2);}
+  .logo-text{font-family:'Orbitron',sans-serif;font-weight:900;font-size:.95rem;color:var(--g);text-shadow:0 0 10px var(--g),0 0 20px var(--g);animation:glowPulse 2s ease-in-out infinite;}
+  .logo-sub{font-size:.58rem;color:var(--muted);letter-spacing:.1em;}
+  @keyframes glowPulse{0%,100%{text-shadow:0 0 10px var(--g),0 0 20px var(--g)}50%{text-shadow:0 0 20px var(--g),0 0 40px var(--g)}}
+
+  .new-chat-btn{
+    margin:13px 14px;
+    background:linear-gradient(135deg,var(--g),var(--g2));
+    border:none;border-radius:11px;padding:11px 14px;
+    font-family:'Orbitron',sans-serif;font-weight:700;font-size:.68rem;letter-spacing:.1em;
+    color:#000;cursor:pointer;display:flex;align-items:center;gap:8px;
+    box-shadow:0 0 16px rgba(0,255,136,.4);transition:all .25s;
+  }
+  .new-chat-btn:hover{transform:translateY(-1px);box-shadow:0 0 26px rgba(0,255,136,.65);}
+
+  .history-label{padding:7px 16px 5px;font-size:.63rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+  .history-list{flex:1;overflow-y:auto;padding:3px 9px;}
+  .history-item{
+    padding:9px 11px;border-radius:10px;font-size:.76rem;color:var(--text);
+    cursor:pointer;display:flex;align-items:center;gap:8px;transition:background .2s;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
+  }
+  .history-item:hover{background:var(--g3);}
+  .history-item.active{background:var(--g3);border:1px solid var(--border);color:var(--g);}
+  .history-item .hi-text{overflow:hidden;text-overflow:ellipsis;}
+  .history-empty{text-align:center;padding:20px 14px;font-size:.73rem;color:rgba(0,255,136,.22);}
+
+  /* System prompt */
+  .sys-panel{padding:12px 14px;border-top:1px solid var(--border);}
+  .sys-label{font-size:.63rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:6px;}
+  .sys-label .dot{width:6px;height:6px;border-radius:50%;background:var(--g);box-shadow:0 0 6px var(--g);}
+  #sysPrompt{
+    width:100%;height:78px;background:rgba(0,0,0,.5);
+    border:1px solid var(--border);border-radius:9px;
+    color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:.7rem;
+    padding:8px 10px;resize:none;outline:none;line-height:1.6;transition:border-color .2s;
+  }
+  #sysPrompt:focus{border-color:var(--border2);box-shadow:0 0 10px rgba(0,255,136,.1);}
+
+  /* CHAT MAIN */
+  .chat-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+  .chat-header{
+    padding:13px 22px;border-bottom:1px solid var(--border);
+    background:rgba(0,0,0,.45);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+  }
+  .chat-title{font-family:'Orbitron',sans-serif;font-weight:700;font-size:.88rem;color:var(--g);letter-spacing:.08em;}
+  .chat-title span{color:var(--text);font-weight:400;}
+  .status-dot{display:flex;align-items:center;gap:7px;font-size:.7rem;color:var(--muted);}
+  .status-dot::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--g);box-shadow:0 0 7px var(--g);animation:pulse 1.5s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .header-btn{
+    background:var(--g3);border:1px solid var(--border);border-radius:8px;
+    padding:6px 12px;font-family:'Space Grotesk',sans-serif;font-size:.7rem;
+    color:var(--g);cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px;
+  }
+  .header-btn:hover{background:var(--g4);box-shadow:0 0 10px rgba(0,255,136,.15);}
+
+  /* Messages */
+  .messages{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:18px;}
+
+  /* Welcome */
+  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:36px;gap:14px;}
+  .welcome-logo{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(1.5rem,4vw,2.3rem);color:var(--g);text-shadow:0 0 14px var(--g),0 0 30px var(--g);animation:glowPulse 2s ease-in-out infinite;letter-spacing:.1em;}
+  .welcome-sub{font-size:.86rem;color:var(--muted);max-width:420px;line-height:1.75;}
+  .suggestions{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:10px;max-width:580px;}
+  .suggestion-chip{
+    background:var(--g3);border:1px solid var(--border);border-radius:20px;
+    padding:8px 15px;font-size:.76rem;color:var(--text);cursor:pointer;transition:all .2s;
+  }
+  .suggestion-chip:hover{background:var(--g4);border-color:var(--border2);color:var(--g);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,255,136,.1);}
+
+  /* Bubbles */
+  .msg{display:flex;gap:11px;animation:msgIn .3s ease;}
+  @keyframes msgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .msg.user{flex-direction:row-reverse;}
+  .msg-avatar{width:33px;height:33px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.95rem;border:1px solid var(--border);}
+  .msg-avatar.ai{background:linear-gradient(135deg,rgba(0,255,136,.14),rgba(0,255,136,.04));box-shadow:0 0 10px rgba(0,255,136,.18);}
+  .msg-avatar.user-av{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1);}
+  .msg-avatar img{width:100%;height:100%;border-radius:8px;object-fit:cover;}
+  .msg-body{max-width:74%;display:flex;flex-direction:column;gap:4px;}
+  .msg.user .msg-body{align-items:flex-end;}
+  .msg-name{font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+  .msg.user .msg-name{color:rgba(255,255,255,.28);}
+  .msg-bubble{
+    background:var(--g3);border:1px solid var(--border);
+    border-radius:15px 15px 15px 4px;padding:11px 15px;
+    font-size:.84rem;line-height:1.78;color:var(--text);
+    white-space:pre-wrap;word-break:break-word;
+  }
+  .msg.user .msg-bubble{background:rgba(0,255,136,.09);border-color:rgba(0,255,136,.22);border-radius:15px 15px 4px 15px;color:#d5f5e5;}
+  .msg-bubble code{background:rgba(0,0,0,.5);border:1px solid var(--border);border-radius:5px;padding:1px 5px;font-family:'Courier New',monospace;font-size:.78rem;color:var(--g);}
+  .msg-bubble pre{background:rgba(0,0,0,.65);border:1px solid var(--border);border-radius:10px;padding:13px;margin:8px 0;overflow-x:auto;font-family:'Courier New',monospace;font-size:.76rem;color:#a0ffcc;line-height:1.7;}
+  .msg-bubble pre code{background:none;border:none;padding:0;color:inherit;}
+  .msg-bubble strong{color:#fff;}
+  .msg-time{font-size:.6rem;color:rgba(255,255,255,.18);padding:0 3px;}
+
+  /* Typing */
+  .typing-indicator{display:flex;gap:5px;align-items:center;padding:13px 15px;}
+  .typing-dot{width:7px;height:7px;border-radius:50%;background:var(--g);animation:typingDot 1.2s ease-in-out infinite;box-shadow:0 0 6px var(--g);}
+  .typing-dot:nth-child(2){animation-delay:.2s}
+  .typing-dot:nth-child(3){animation-delay:.4s}
+  @keyframes typingDot{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-5px);opacity:1}}
+
+  /* Input */
+  .input-area{padding:14px 22px 18px;border-top:1px solid var(--border);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);flex-shrink:0;}
+  .input-wrap{
+    display:flex;align-items:flex-end;gap:9px;
+    background:rgba(0,0,0,.55);border:1px solid var(--border);
+    border-radius:15px;padding:9px 13px;transition:border-color .2s,box-shadow .2s;
+  }
+  .input-wrap:focus-within{border-color:var(--border2);box-shadow:0 0 18px rgba(0,255,136,.1);}
+  #userInput{
+    flex:1;background:none;border:none;outline:none;
+    color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:.86rem;
+    resize:none;max-height:130px;line-height:1.6;min-height:22px;
+  }
+  #userInput::placeholder{color:rgba(0,255,136,.22);}
+  .send-btn{
+    width:38px;height:38px;border-radius:10px;
+    background:linear-gradient(135deg,var(--g),var(--g2));
+    border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;transition:all .25s;box-shadow:0 0 13px rgba(0,255,136,.38);
+  }
+  .send-btn:hover{transform:scale(1.08);box-shadow:0 0 22px rgba(0,255,136,.7);}
+  .send-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;}
+  .send-btn svg{width:17px;height:17px;fill:#000;}
+  .input-hint{display:flex;justify-content:space-between;margin-top:7px;padding:0 3px;}
+  .input-hint span{font-size:.64rem;color:rgba(0,255,136,.26);}
+
+  /* Toast */
+  .toast{
+    position:fixed;top:18px;right:18px;z-index:9999;
+    background:rgba(0,0,0,.88);border:1px solid var(--border2);border-radius:11px;
+    padding:11px 18px;font-size:.78rem;font-weight:600;color:var(--g);
+    box-shadow:0 0 20px rgba(0,255,136,.22);animation:toastIn .3s ease;
+  }
+  .toast.error{border-color:rgba(255,80,80,.5);color:#ff8888;}
+  @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+  .sidebar-toggle{display:none;background:var(--g3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--g);cursor:pointer;font-size:1rem;}
+  @media(max-width:700px){
+    .sidebar{position:fixed;top:0;left:0;height:100%;transform:translateX(-100%);}
+    .sidebar.open{transform:translateX(0);}
+    .sidebar-toggle{display:flex;}
+  }
+</style>
+</head>
+<body>
+<div class="bg-animated"></div>
+<div class="grid-bg"></div>
+<div id="particles"></div>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <img src="https://res.cloudinary.com/dsjctfzj1/image/upload/v1760351559/IMG-20251007-WA0626_dv8s8r.jpg" alt="Logo" class="logo-img">
+      <div>
+        <div class="logo-text">WarpahAI</div>
+        <div class="logo-sub">Roblox Assistant</div>
+      </div>
+    </div>
+
+    <button class="new-chat-btn" onclick="newChat()">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      NEW CHAT
+    </button>
+
+    <div class="history-label">Riwayat Chat</div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">Belum ada riwayat chat</div>
+    </div>
+
+    <div class="sys-panel">
+      <div class="sys-label"><span class="dot"></span> System Prompt</div>
+      <textarea id="sysPrompt">Kamu adalah WarpahAI, asisten Roblox expert dari WarpahExploits. Kamu ahli dalam: Roblox Studio (building, scripting Lua, game design), cheat/exploit (ESP, aimbot, speed hack, fly hack, auto-farm, dll), anti-cheat system (deteksi fly/speed/executor, webhook logging), dan script hub development. Jawab dalam Bahasa Indonesia, friendly tapi profesional. Sertakan contoh kode Lua jika relevan. Gunakan emoji secukupnya.</textarea>
+    </div>
+  </aside>
+
+  <!-- CHAT MAIN -->
+  <main class="chat-main">
+    <div class="chat-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <div>
+          <div class="chat-title">WarpahAI <span>— Roblox Expert</span></div>
+          <div class="status-dot">Online · Siap membantu</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="header-btn" onclick="clearChat()">🗑 Clear</button>
+        <button class="header-btn" onclick="exportChat()">💾 Export</button>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcomeScreen">
+        <div class="welcome-logo">⚡ WARPAH AI</div>
+        <div class="welcome-sub">Asisten AI khusus Roblox — tanya apapun soal Lua scripting, Roblox Studio building, exploit/cheat, dan anti-cheat system.</div>
+        <div class="suggestions">
+          <div class="suggestion-chip" onclick="useSuggestion(this)">📦 Cara bikin ESP Player di Roblox?</div>
+          <div class="suggestion-chip" onclick="useSuggestion(this)">🏗️ Tips building map di Roblox Studio</div>
+          <div class="suggestion-chip" onclick="useSuggestion(this)">🛡️ Cara buat anti-cheat fly hack detection?</div>
+          <div class="suggestion-chip" onclick="useSuggestion(this)">⚡ Script speed hack Roblox + bypass</div>
+          <div class="suggestion-chip" onclick="useSuggestion(this)">🎮 Cara buat auto-farm script?</div>
+          <div class="suggestion-chip" onclick="useSuggestion(this)">🔑 Sistem lisensi key di Roblox game?</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-wrap">
+        <textarea id="userInput" rows="1"
+          placeholder="Tanya tentang Roblox scripting, building, cheat, anti-cheat..."
+          onkeydown="handleKey(event)" oninput="autoResize(this);updateCount()"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+      <div class="input-hint">
+        <span>Enter kirim · Shift+Enter baris baru</span>
+        <span id="charCount">0 / 2000</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+let chatHistory = [];
+let sessions    = [];
+let currentId   = null;
+let isBusy      = false;
+
+// Particles
+(function(){
+  const c=document.getElementById('particles');
+  for(let i=0,n=window.innerWidth<600?10:20;i<n;i++){
+    const p=document.createElement('div');p.className='particle';
+    p.style.cssText=`left:${Math.random()*100}%;width:${Math.random()*3+1}px;height:${Math.random()*3+1}px;animation-duration:${Math.random()*10+12}s;animation-delay:${Math.random()*8}s;opacity:${Math.random()*.35+.1}`;
+    c.appendChild(p);
+  }
+})();
+
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,130)+'px';}
+function updateCount(){document.getElementById('charCount').textContent=document.getElementById('userInput').value.length+' / 2000';}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function formatMsg(text){
+  text=text.replace(/```(\w*)\n?([\s\S]*?)```/g,(_,l,c)=>`<pre><code>${escHtml(c.trim())}</code></pre>`);
+  text=text.replace(/`([^`]+)`/g,(_,c)=>`<code>${escHtml(c)}</code>`);
+  text=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  text=text.replace(/\n/g,'<br>');
+  return text;
+}
+
+function toast(msg, type=''){
+  const t=document.createElement('div');
+  t.className='toast'+(type?' '+type:'');
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+
+function scrollBottom(){const m=document.getElementById('messages');m.scrollTop=m.scrollHeight;}
+
+function renderMessage(role, content){
+  const isUser=role==='user';
+  const time=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  const div=document.createElement('div');
+  div.className='msg'+(isUser?' user':'');
+  div.innerHTML=`
+    <div class="msg-avatar ${isUser?'user-av':'ai'}">
+      ${isUser?'👤':`<img src="https://res.cloudinary.com/dsjctfzj1/image/upload/v1760351559/IMG-20251007-WA0626_dv8s8r.jpg" alt="AI">`}
+    </div>
+    <div class="msg-body">
+      <div class="msg-name">${isUser?'Kamu':'WarpahAI'}</div>
+      <div class="msg-bubble">${isUser?escHtml(content):formatMsg(content)}</div>
+      <div class="msg-time">${time}</div>
+    </div>`;
+  return div;
+}
+
+function showTyping(){
+  const d=document.createElement('div');d.className='msg';d.id='typing';
+  d.innerHTML=`<div class="msg-avatar ai"><img src="https://res.cloudinary.com/dsjctfzj1/image/upload/v1760351559/IMG-20251007-WA0626_dv8s8r.jpg" alt="AI"></div>
+    <div class="msg-body"><div class="msg-name">WarpahAI</div>
+    <div class="msg-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div></div>`;
+  document.getElementById('messages').appendChild(d);scrollBottom();
+}
+function removeTyping(){document.getElementById('typing')?.remove();}
+
+async function sendMessage(){
+  const input=document.getElementById('userInput');
+  const text=input.value.trim();
+  if(!text||isBusy) return;
+  if(text.length>2000){toast('⚠️ Pesan terlalu panjang!','error');return;}
+
+  document.getElementById('welcomeScreen')?.remove();
+  chatHistory.push({role:'user',content:text});
+  document.getElementById('messages').appendChild(renderMessage('user',text));
+  scrollBottom();
+
+  input.value='';input.style.height='auto';updateCount();
+  isBusy=true;document.getElementById('sendBtn').disabled=true;
+  showTyping();
+
+  try {
+    // ✅ AMAN: request ke /api/chat (serverless function Vercel)
+    // API key TIDAK ada di sini — tersimpan di environment variable Vercel
+    const res = await fetch('/api/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        system: document.getElementById('sysPrompt').value.trim(),
+        messages: chatHistory
+      })
+    });
+
+    const data = await res.json();
+    removeTyping();
+
+    let reply = '';
+    if(data.content?.[0]?.text) reply=data.content[0].text;
+    else if(data.error) reply=`❌ Error: ${data.error}`;
+    else reply='❌ Terjadi kesalahan, coba lagi.';
+
+    chatHistory.push({role:'assistant',content:reply});
+    document.getElementById('messages').appendChild(renderMessage('assistant',reply));
+    scrollBottom();
+    saveSession(text);
+
+  } catch(err){
+    removeTyping();
+    const errMsg='❌ Gagal konek ke server. Cek koneksi internet kamu.';
+    chatHistory.push({role:'assistant',content:errMsg});
+    document.getElementById('messages').appendChild(renderMessage('assistant',errMsg));
+    scrollBottom();
+  }
+
+  isBusy=false;document.getElementById('sendBtn').disabled=false;
+}
+
+function useSuggestion(el){
+  document.getElementById('userInput').value=el.textContent.trim().replace(/^\S+\s/,'');
+  autoResize(document.getElementById('userInput'));updateCount();sendMessage();
+}
+
+function saveSession(firstMsg){
+  if(!currentId){
+    currentId=Date.now().toString();
+    sessions.unshift({id:currentId,title:firstMsg.slice(0,38)+(firstMsg.length>38?'…':''),history:[...chatHistory]});
+  } else {
+    const s=sessions.find(s=>s.id===currentId);
+    if(s) s.history=[...chatHistory];
+  }
+  renderHistory();
+  try{localStorage.setItem('warpah_sessions',JSON.stringify(sessions));}catch(e){}
+}
+
+function loadSessions(){
+  try{const d=localStorage.getItem('warpah_sessions');if(d){sessions=JSON.parse(d);renderHistory();}}catch(e){}
+}
+
+function renderHistory(){
+  const el=document.getElementById('historyList');
+  if(!sessions.length){el.innerHTML='<div class="history-empty">Belum ada riwayat chat</div>';return;}
+  el.innerHTML=sessions.map(s=>`
+    <div class="history-item${s.id===currentId?' active':''}" onclick="loadSession('${s.id}')">
+      <span>💬</span><span class="hi-text">${escHtml(s.title)}</span>
+    </div>`).join('');
+}
+
+function loadSession(id){
+  const s=sessions.find(s=>s.id===id);if(!s)return;
+  currentId=id;chatHistory=[...s.history];
+  const m=document.getElementById('messages');m.innerHTML='';
+  for(const msg of chatHistory) m.appendChild(renderMessage(msg.role,msg.content));
+  scrollBottom();renderHistory();
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function newChat(){
+  currentId=null;chatHistory=[];
+  const m=document.getElementById('messages');
+  m.innerHTML=`<div class="welcome" id="welcomeScreen">
+    <div class="welcome-logo">⚡ WARPAH AI</div>
+    <div class="welcome-sub">Asisten AI khusus Roblox — tanya apapun soal Lua scripting, Roblox Studio building, exploit/cheat, dan anti-cheat system.</div>
+    <div class="suggestions">
+      <div class="suggestion-chip" onclick="useSuggestion(this)">📦 Cara bikin ESP Player di Roblox?</div>
+      <div class="suggestion-chip" onclick="useSuggestion(this)">🏗️ Tips building map di Roblox Studio</div>
+      <div class="suggestion-chip" onclick="useSuggestion(this)">🛡️ Cara buat anti-cheat fly hack detection?</div>
+      <div class="suggestion-chip" onclick="useSuggestion(this)">⚡ Script speed hack Roblox + bypass</div>
+      <div class="suggestion-chip" onclick="useSuggestion(this)">🎮 Cara buat auto-farm script?</div>
+      <div class="suggestion-chip" onclick="useSuggestion(this)">🔑 Sistem lisensi key di Roblox game?</div>
+    </div>
+  </div>`;
+  renderHistory();document.getElementById('sidebar').classList.remove('open');
+}
+
+function clearChat(){
+  if(!chatHistory.length)return;
+  chatHistory=[];currentId=null;newChat();toast('🗑 Chat dihapus');
+}
+
+function exportChat(){
+  if(!chatHistory.length){toast('⚠️ Belum ada chat','error');return;}
+  const txt=chatHistory.map(m=>`[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n---\n\n');
+  const a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
+  a.download='warpah-ai-chat.txt';a.click();
+  toast('💾 Chat berhasil di-export!');
+}
+
+loadSessions();
+document.getElementById('userInput').focus();
+</script>
+</body>
+</html>
